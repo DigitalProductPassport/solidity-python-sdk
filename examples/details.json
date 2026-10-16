@@ -1,5 +1,18 @@
 {
-    "productId": 1,
+  "complexId": "SWEET-DELIGHTS-SP",
+  "complex": {
+    "complexName": "Sweet Delights Factory",
+    "complexCountry": "Brazil",
+    "complexAddress": "Rua das Flores 100, Sao Paulo",
+    "geolocationId": "GEO-SWEET-DELIGHTS-SP",
+    "complexSiteType": "Manufacturing",
+    "complexIndustry": "Food",
+    "latitude": "-23.5505",
+    "longitude": "-46.6333",
+    "additionalInfo": "Main plant"
+  },
+  "productId": 1,
+  "product": {
     "description": "Brigadeiro Product Passport",
     "manuals": ["QmbnzbFDcmtJhyw5XTLkcnkJMhW86YZg6oc3FsNBeN2r4W"],
     "specifications": ["QmbnzbFDcmtJhyw5XTLkcnkJMhW86YZg6oc3FsNBeN2r4W"],
@@ -8,7 +21,7 @@
     "expiryDate": "2023-12-31",
     "certifications": "FDA-5678",
     "warrantyInfo": "Not applicable",
-    "materialComposition": "Condensed milk, cocoa powder, butter, chocolate sprinkles",
-    "complianceInfo": "Compliant with local food safety regulations",
-    "ipfs": "QmWDYhFAaT89spcqbKYboyCm6mkYSxKJaWUuS18Akmw96t"
+    "materialComposition": ["0x000000000000000000000000000000000000dEaD"],
+    "complexId": "SWEET-DELIGHTS-SP"
   }
+}

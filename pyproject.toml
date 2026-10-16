@@ -4,15 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "solidity-python-sdk"
-version = "0.1.26"
+version = "0.2.0"
 description = "SDK for interacting with Digital Product Passport smart contracts"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
   {name = "Luthiano Trarbach", email = "bhagah.trarbach@gmail.com"}
 ]
-dependencies = ["web3", "python-dotenv", "requests", "pinatapy-vourhey", "eth-tester"]
+dependencies = ["web3>=7", "python-dotenv", "requests", "pinatapy-vourhey", "eth-tester"]
+
+[project.optional-dependencies]
+test = ["pytest", "eth-tester[py-evm]"]
 
 [project.urls]
 Homepage = "https://github.com/DigitalProductPassport/solidity-python-sdk"

@@ -6,27 +6,29 @@ def deploy_and_set_product(details_file_path):
     sdk = DigitalProductPassportSDK()
 
     # Load the details from the JSON file
-    with open('details.json', 'r') as f:
-        product_details = json.load(f)
+    with open(details_file_path, 'r') as f:
+        details = json.load(f)
 
-    # Extract necessary details from the JSON data
-    product_id = product_details.get("productId")
+    product_id = details.get("productId")
     if not product_id:
         raise ValueError("Product ID not found in JSON file")
 
-    # Deploy the contract
-    account_address = sdk.account.address  # or fetch it from the details if needed
-    contract_address = sdk.product_passport.deploy(account_address)
-    
-    # Print the address of the deployed contract
-    print(f"Contract deployed at address: {contract_address}")
+    # Deploy and link all the contracts
+    addresses = sdk.deploy_system()
+    print(f"Contracts deployed at: {addresses}")
 
-    # Set product details on the deployed contract
-    tx_receipt = sdk.product_passport.set_product_data(contract_address, product_id, product_details)
-    
+    # Every product must come from a registered complex
+    sdk.complex_management.add_complex(addresses["complex_management"], details["complexId"], details["complex"])
+
+    tx_receipt = sdk.product_passport.create_product(addresses["product_passport"], product_id, details["product"])
+
     if tx_receipt["status"] == 1:
-        print("Product details set successfully.")
+        print("Product created successfully.")
+        print(sdk.product_passport.get_product_details(addresses["product_passport"], product_id))
     else:
-        print("Failed to set product details.")
-    
-    return contract_address
+        print("Failed to create product.")
+
+    return addresses
+
+if __name__ == '__main__':
+    deploy_and_set_product('details.json')

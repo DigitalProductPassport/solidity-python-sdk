@@ -36,6 +36,16 @@ This project demonstrates the usage of the `DigitalProductPassportSDK` for manag
     export PRIVATE_KEY=your_private_key
     ```
 
+## Deploying Demo Contracts
+
+The demo reads from deployed contracts. To deploy them, register a factory and five distribution centers, create a product, and ship five batches, run:
+
+```bash
+python deploy.py
+```
+
+It prints the ProductPassport and Batch contract addresses to use in the demo.
+
 ## Running the Demo
 
 To start the demo application, run the following command:
@@ -67,30 +77,29 @@ eb deploy
 - **Home Page**: Displays the title and logo.
 - **Tabs**: Two tabs for "Product Information" and "Batch".
 - **Product Information**:
-  - Input for Product Contract Address
+  - Inputs for Product Contract Address and Product ID
   - Button to fetch product details
-  - Displays detailed product information including UID, GTIN, Taric Code, Manufacturer Info, Consumer Info, End of Life Info
-  - Displays product specifications and documents
+  - Displays product information including description, batch number, dates, certifications, warranty, material composition and complex
+  - Displays the product's origin on a map, and its documents
 - **Batch**:
-  - Input for Batch Contract Address
-  - Input for Batch ID
+  - Inputs for Batch Contract Address, Batch ID and Product ID
   - Button to fetch batch details
-  - Displays detailed batch information including Quantity, Assembling Time, Transport Details
-  - Displays geolocations on a map
+  - Displays batch information including Quantity, Assembling Time, Transport Details, product and complex
+  - Displays the batch's origin and current location on a map
 
 
 ## How to use
 
 ### Product Information
 
-You can click on Product information tab, and then add the contract address for the product passport on the text input.
-You can use this one as example: "0x8aB5ee83E093487a613fB58677c478758a29dab4"
+You can click on Product information tab, and then add the contract address for the product passport and the product ID on the text inputs.
+Use the ProductPassport address printed by `deploy.py` and product ID 1.
 ![](https://github.com/DigitalProductPassport/solidity-python-sdk/blob/main/examples/passport_details/images/product_details.gif)
 
 ### Batch Information
 
-You can click on Batch  tab, and then add the contract address for the Batch on the text input.
-You can use this this one as example: "0x7874c7A4be5F8605446Bc91B18B0661f67cB6A14"
+You can click on Batch tab, and then add the contract address for the Batch, the batch ID and the product ID on the text inputs.
+Use the Batch address printed by `deploy.py`, a batch ID from 1 to 5, and product ID 1.
 ![](https://github.com/DigitalProductPassport/solidity-python-sdk/blob/main/examples/passport_details/images/batch.gif)
 
 
@@ -102,25 +111,25 @@ Defines the home page layout with title, logo, tabs, and input fields for contra
 
 ### `get_product_details(product_contract_address, product_id)`
 
-Fetches and displays product details based on the provided contract address and product ID.
+Fetches and displays product details and origin based on the provided contract address and product ID.
 
-### `get_batch_details(batch_contract_address, batch_id)`
+### `get_batch_details(batch_contract_address, batch_id, product_id)`
 
-Fetches and displays batch details based on the provided contract address and batch ID.
+Fetches and displays batch details based on the provided contract address, batch ID and product ID.
 
 ### `plot_geolocations(geolocations)`
 
-Plots geolocation data on a map using Leaflet.
+Plots a list of geolocations (origin, current location) on a map using Leaflet.
 
 ### `get_pinata_url(ipfs_hash)`
 
 Generates a URL for Pinata-hosted IPFS content.
 
-### `plot_product_specifications(specs)`
+### `plot_product_specifications(product)`
 
 Displays product specifications in a grid layout.
 
-### `plot_product_documents(specs)`
+### `plot_product_documents(product)`
 
 Displays product documents (manuals and specifications) using embedded PDF viewers.
 

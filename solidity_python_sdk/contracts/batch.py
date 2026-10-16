@@ -1,144 +1,104 @@
-import logging
-from solidity_python_sdk.utils import utils
+from solidity_python_sdk.contracts.base import BaseContract, args_from
 
-class Batch:
+CREATE_BATCH_FIELDS = ["batchId", "amount", "assemblingTime", "transportDetails", "productId"]
+
+
+class Batch(BaseContract):
     """
-    Interface for interacting with the Batch smart contract.
-
-    Attributes:
-        sdk (DigitalProductPassportSDK): The SDK instance for interacting with the blockchain.
-        web3 (Web3): Web3 instance for blockchain interactions.
-        account (Account): Ethereum account used for transactions.
-        contract (dict): ABI and bytecode of the Batch contract.
-        gas (int): Gas limit for transactions.
-        gwei_bid (int): Gas price in gwei.
-        logger (Logger): Logger instance for logging information and debug messages.
+    Interface for interacting with the IntegratedProductPassportBatch smart contract,
+    which mints an ERC-721 token (DPP) for each production batch and tracks its
+    origin and current location.
     """
 
-    def __init__(self, sdk):
+    CONTRACT_NAME = "IntegratedProductPassportBatch"
+
+    def initialize_contracts(self, contract_address, product_passport_address, complex_management_address, geolocation_address):
         """
-        Initializes the Batch class with the provided SDK instance.
-
-        Args:
-            sdk (DigitalProductPassportSDK): The SDK instance for blockchain interactions.
-
-        Raises:
-            KeyError: If the 'Batch' contract is not found in the SDK contracts.
-        """
-        self.sdk = sdk
-        self.web3 = sdk.web3
-        self.account = sdk.account
-        self.gas = sdk.gas
-        self.gwei_bid = sdk.gwei_bid
-
-        if 'Batch' not in sdk.contracts:
-            raise KeyError("Contract 'Batch' not found in SDK")
-
-        self.contract = sdk.contracts['Batch']
-        self.logger = logging.getLogger(__name__)
-
-    def deploy(self, product_passport_address):
-        """
-        Deploys the Batch smart contract to the blockchain.
-
-        Args:
-            product_passport_address (str): The address of the ProductPassport contract to be used in the Batch contract.
+        Links the ProductPassport, ComplexManagement and Geolocation contracts.
 
         Returns:
-            str: The address of the deployed Batch contract.
-
-        Raises:
-            ValueError: If the transaction fails or the contract cannot be deployed.
+            dict: The transaction receipt.
         """
-        self.logger.info(f"Deploying Batch contract from {self.account.address}")
-        Contract = self.web3.eth.contract(abi=self.contract["abi"], bytecode=self.contract["bytecode"])
-        
-        tx = Contract.constructor(product_passport_address, self.account.address).build_transaction({
-            'from': self.account.address,
-            'nonce': self.web3.eth.get_transaction_count(self.account.address, 'pending'),
-            'gas': Contract.constructor(product_passport_address, self.account.address).estimate_gas({'from': self.account.address}),
-            'gasPrice': self.web3.to_wei(self.gwei_bid, 'gwei')
-        })
-        utils.check_funds(self.web3, self.account.address, tx['gas'] * tx['gasPrice'])
-
-        signed_tx = self.web3.eth.account.sign_transaction(tx, self.account.key)
-        tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        tx_receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
-        contract_address = tx_receipt.contractAddress
-
-        self.logger.info(f"Batch contract deployed at address: {contract_address}")
-        return contract_address
+        return self._transact(
+            contract_address, "initializeContracts",
+            product_passport_address, complex_management_address, geolocation_address
+        )
 
     def create_batch(self, contract_address, batch_details):
         """
-        Creates a new batch in the Batch contract.
+        Creates a batch for an existing product and mints its NFT to the contract owner.
+        The batch's origin and current location are set to the product's complex.
 
         Args:
-            contract_address (str): The address of the deployed Batch contract.
-            batch_details (dict): A dictionary containing the batch details with keys such as:
-                "batchId" (int): The unique identifier for the batch.
-                "amount" (int): The quantity of items in the batch.
+            contract_address (str): The address of the deployed batch contract.
+            batch_details (dict): A dictionary with the keys:
+                "batchId" (int): The unique identifier for the batch, also the NFT token ID.
+                "amount" (int): The quantity of items in the batch, greater than zero.
                 "assemblingTime" (int): The UNIX timestamp of the assembling time.
                 "transportDetails" (str): Details about the transport.
-                "ipfsHash" (str): The IPFS hash of the batch metadata.
+                "productId" (int): The product the batch belongs to.
 
         Returns:
-            dict: The transaction receipt containing details of the transaction.
-
-        Raises:
-            ValueError: If the transaction fails or the batch cannot be created.
+            dict: The transaction receipt.
         """
-        contract = self.web3.eth.contract(address=contract_address, abi=self.contract['abi'])
+        batch_id, amount, assembling_time, transport_details, product_id = args_from(batch_details, CREATE_BATCH_FIELDS)
+        return self._transact(
+            contract_address, "createBatch",
+            int(batch_id), int(amount), int(assembling_time), transport_details, int(product_id)
+        )
 
-        try:
-            tx = contract.functions.setBatchDetails(
-                batch_details["batchId"],
-                batch_details["amount"],
-                batch_details["assemblingTime"],
-                batch_details["transportDetails"],
-                batch_details["ipfsHash"]
-            ).build_transaction({
-                'from': self.account.address,
-                'nonce': self.web3.eth.get_transaction_count(self.account.address, 'pending'),
-                'gas': contract.functions.setBatchDetails(
-                    batch_details["batchId"],
-                    batch_details["amount"],
-                    batch_details["assemblingTime"],
-                    batch_details["transportDetails"],
-                    batch_details["ipfsHash"]
-                ).estimate_gas({'from': self.account.address}),
-                'gasPrice': self.web3.to_wei(self.gwei_bid, 'gwei')
-            })
-            
-            signed_tx = self.web3.eth.account.sign_transaction(tx, self.account.key)
-            tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
-            tx_receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+    def update_batch_location(self, contract_address, batch_id, geolocation_id, latitude="", longitude="", additional_info=""):
+        """
+        Moves a batch to ``geolocation_id``. If the geolocation does not exist, it is
+        created from ``latitude``, ``longitude`` and ``additional_info``, which requires
+        the batch contract to own the Geolocation contract.
 
-            self.logger.info(f"Batch created transaction receipt: {tx_receipt}")
-            return tx_receipt
-        except Exception as e:
-            self.logger.error(f"Failed to create batch: {e}")
-            raise
+        Returns:
+            dict: The transaction receipt.
+        """
+        return self._transact(
+            contract_address, "updateBatchLocation",
+            int(batch_id), geolocation_id, latitude, longitude, additional_info
+        )
 
     def get_batch(self, contract_address, batch_id):
         """
-        Retrieves the batch details from the Batch contract.
-
-        Args:
-            contract_address (str): The address of the deployed Batch contract.
-            batch_id (int): The unique identifier for the batch.
+        Retrieves the stored batch record.
 
         Returns:
-            dict: The batch details retrieved from the contract.
-
-        Raises:
-            ValueError: If the batch cannot be retrieved or if the batch ID is invalid.
+            dict: ``{"amount", "assemblingTime", "transportDetails", "currentGeolocationId",
+            "originGeolocationId"}``. Unknown batches have an amount of 0.
         """
-        contract = self.web3.eth.contract(address=contract_address, abi=self.contract['abi'])
-        try:
-            batch = contract.functions.getBatchDetails(batch_id).call()
-            self.logger.info(f"Batch retrieved: {batch}")
-            return batch
-        except Exception as e:
-            self.logger.error(f"Failed to retrieve batch: {e}")
-            raise
+        return self._call(contract_address, "batches", int(batch_id))
+
+    def get_batch_details(self, contract_address, batch_id, product_id):
+        """
+        Retrieves a batch together with its product, complex and locations.
+
+        Returns:
+            dict: ``{"batch", "product", "complex", "currentLocation", "originLocation"}``.
+        """
+        return self._call(contract_address, "getBatchDetails", int(batch_id), int(product_id))
+
+    def set_token_uri(self, contract_address, batch_id, token_uri):
+        """
+        Links a batch NFT to off-chain metadata, for example an IPFS JSON file.
+
+        Returns:
+            dict: The transaction receipt.
+        """
+        return self._transact(contract_address, "setTokenURI", int(batch_id), token_uri)
+
+    def token_uri(self, contract_address, batch_id):
+        """
+        Returns:
+            str: The metadata URI of the batch NFT.
+        """
+        return self._call(contract_address, "tokenURI", int(batch_id))
+
+    def owner_of(self, contract_address, batch_id):
+        """
+        Returns:
+            str: The address that holds the batch NFT.
+        """
+        return self._call(contract_address, "ownerOf", int(batch_id))

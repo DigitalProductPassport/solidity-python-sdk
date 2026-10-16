@@ -2,81 +2,64 @@
 
 ## Overview
 
-The `Geolocation` class provides an interface for interacting with the `Geolocation` smart contract. This class allows for adding geolocation information for specific batches and retrieving such information from the blockchain.
+The `Geolocation` class provides an interface for interacting with the `Geolocation` smart contract, which stores locations (latitude, longitude and additional info) under a string ID.
+
+All write methods are `onlyOwner`. When the contracts are deployed with `sdk.deploy_system()`, `ComplexManagement` owns `Geolocation`, so new locations are created through `ComplexManagement.add_complex`.
 
 ## Class: `Geolocation`
 
-### Attributes
+### Common Methods
 
-- **`web3`** (`Web3`): The Web3 instance used for blockchain interactions.
-- **`account`** (`Account`): The Ethereum account used for transactions.
-- **`contract`** (`dict`): ABI and bytecode of the `Geolocation` contract.
-- **`logger`** (`Logger`): Logger instance for logging information and debug messages.
+Every contract class shares these methods from `BaseContract`:
+
+- **`deploy(initial_owner=None)`**: Deploys the contract and returns its address. The owner defaults to the SDK account.
+- **`owner(contract_address)`**: Returns the address of the contract owner.
+- **`transfer_ownership(contract_address, new_owner)`**: Transfers ownership of the contract.
+
+Write methods return the transaction receipt and raise `TransactionFailedError` if the transaction fails. Read methods return Solidity structs as dicts keyed by their field names.
 
 ### Methods
 
-#### `__init__(self, sdk)`
+#### `set_geolocation(self, contract_address, geolocation_id, latitude, longitude, additional_info="")`
 
-Initializes the `Geolocation` class with the provided SDK instance.
-
-- **Args**:
-  - `sdk` (`DigitalProductPassportSDK`): The SDK instance used for blockchain interactions.
-
-#### `add_geolocation(self, contract_address, batch_id, latitude, longitude)`
-
-Adds geolocation information for a specific batch in the `Geolocation` contract.
+Stores a geolocation under `geolocation_id`, overwriting any existing one.
 
 - **Args**:
   - `contract_address` (`str`): The address of the deployed `Geolocation` contract.
-  - `batch_id` (`str`): The unique identifier for the batch.
-  - `latitude` (`float`): The latitude of the geolocation.
-  - `longitude` (`float`): The longitude of the geolocation.
+  - `geolocation_id` (`str`): The unique identifier for the geolocation.
+  - `latitude` (`str`): The latitude, at most 20 characters.
+  - `longitude` (`str`): The longitude, at most 20 characters.
+  - `additional_info` (`str`, optional): Free-form information about the location.
+
+#### `update_geolocation(self, contract_address, geolocation_id, latitude, longitude, additional_info="")`
+
+Updates an existing geolocation.
+
+#### `remove_geolocation(self, contract_address, geolocation_id)`
+
+Removes an existing geolocation.
+
+#### `get_geolocation(self, contract_address, geolocation_id)`
 
 - **Returns**:
-  - `dict`: The transaction receipt containing details of the transaction.
+  - `dict`: `{"latitude", "longitude", "additionalInfo"}`. Unknown IDs return empty strings.
 
-#### `get_geolocation(self, contract_address, batch_id)`
-
-Retrieves the geolocation information for a specific batch from the `Geolocation` contract.
-
-- **Args**:
-  - `contract_address` (`str`): The address of the deployed `Geolocation` contract.
-  - `batch_id` (`str`): The unique identifier for the batch.
+#### `geolocation_exists(self, contract_address, geolocation_id)`
 
 - **Returns**:
-  - `tuple`: A tuple containing the latitude and longitude of the geolocation.
-
-## Dependencies
-
-This module depends on:
-
-- `web3`: For Ethereum blockchain interactions.
-- `logging`: For logging information and debug messages.
-- `solidity_python_sdk`: For contract utilities.
+  - `bool`: Whether a geolocation is stored under `geolocation_id`.
 
 ## Example Usage
 
-Here’s a brief example of how to use the `Geolocation` class:
-
 ```python
 from solidity_python_sdk import DigitalProductPassportSDK
-from solidity_python_sdk.geolocation import Geolocation
 
-# Initialize SDK
-sdk = DigitalProductPassportSDK(provider_url="https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-                                private_key="YOUR_PRIVATE_KEY")
+sdk = DigitalProductPassportSDK()
 
-# Create Geolocation instance
-geolocation = Geolocation(sdk)
+# A standalone Geolocation contract owned by the SDK account
+contract_address = sdk.geolocation.deploy()
+sdk.geolocation.set_geolocation(contract_address, "GEO-NYC", "40.7128", "-74.0060", "New York City")
 
-# Add geolocation to a batch
-contract_address = "0xYourGeolocationContractAddress"
-batch_id = "batch123"
-latitude = 37.7749
-longitude = -122.4194
-tx_receipt = geolocation.add_geolocation(contract_address, batch_id, latitude, longitude)
-
-# Get geolocation of a batch
-geolocation_info = geolocation.get_geolocation(contract_address, batch_id)
-print(geolocation_info)
+print(sdk.geolocation.get_geolocation(contract_address, "GEO-NYC"))
+# {'latitude': '40.7128', 'longitude': '-74.0060', 'additionalInfo': 'New York City'}
 ```
