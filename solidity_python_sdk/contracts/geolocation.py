@@ -1,61 +1,64 @@
-import json
-import logging
-import os
-from web3 import Web3
-from solidity_python_sdk.utils import utils
+from solidity_python_sdk.contracts.base import BaseContract
 
 
-class Geolocation:
+class Geolocation(BaseContract):
     """
-    Interface for interacting with the Geolocation smart contract.
+    Interface for interacting with the Geolocation smart contract, which stores
+    locations (latitude, longitude, additional info) under a string ID.
 
-    Attributes:
-        web3 (Web3): Web3 instance for blockchain interactions.
-        account (Account): Ethereum account used for transactions.
-        contract (dict): ABI and bytecode of the Geolocation contract.
-        logger (Logger): Logger instance for logging information and debug messages.
+    Writes are ``onlyOwner``. When the contracts are wired with
+    ``DigitalProductPassportSDK.deploy_system``, ComplexManagement owns Geolocation,
+    so new locations are created through ``ComplexManagement.add_complex``.
     """
 
-    def __init__(self, sdk):
-        """
-        Initializes the Geolocation class with the provided SDK instance.
+    CONTRACT_NAME = "Geolocation"
 
-        Args:
-            sdk (DigitalProductPassportSDK): The SDK instance for blockchain interactions.
+    def set_geolocation(self, contract_address, geolocation_id, latitude, longitude, additional_info=""):
         """
-        self.web3 = sdk.web3
-        self.account = sdk.account
-        self.contract = sdk.contracts['Geolocation']
-        self.logger = logging.getLogger(__name__)
-
-    def set_geolocation(self, contract_address, batch_id, latitude, longitude):
-        """
-        Adds geolocation information for a specific batch in the Geolocation contract.
+        Stores a geolocation under ``geolocation_id``, overwriting any existing one.
 
         Args:
             contract_address (str): The address of the deployed Geolocation contract.
-            batch_id (string): The unique identifier for the batch.
-            latitude (string): The latitude of the geolocation.
-            longitude (string): The longitude of the geolocation.
+            geolocation_id (str): The unique identifier for the geolocation.
+            latitude (str): The latitude, at most 20 characters.
+            longitude (str): The longitude, at most 20 characters.
+            additional_info (str, optional): Free-form information about the location.
 
         Returns:
-            dict: The transaction receipt containing details of the transaction.
+            dict: The transaction receipt.
         """
-        contract = self.web3.eth.contract(address=contract_address, abi=self.contract['abi'])
-        tx_hash = contract.functions.setGeolocation(batch_id, latitude, longitude).transact({'from': self.account.address})
-        tx_receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
-        return tx_receipt
+        return self._transact(contract_address, "setGeolocation", geolocation_id, latitude, longitude, additional_info)
 
-    def get_geolocation(self, contract_address, batch_id):
+    def update_geolocation(self, contract_address, geolocation_id, latitude, longitude, additional_info=""):
         """
-        Retrieves the geolocation information for a specific batch from the Geolocation contract.
-
-        Args:
-            contract_address (str): The address of the deployed Geolocation contract.
-            batch_id (str): The unique identifier for the batch.
+        Updates an existing geolocation.
 
         Returns:
-            tuple: A tuple containing the latitude and longitude of the geolocation.
+            dict: The transaction receipt.
         """
-        contract = self.web3.eth.contract(address=contract_address, abi=self.contract['abi'])
-        return contract.functions.getGeolocation(batch_id).call()
+        return self._transact(contract_address, "updateGeolocation", geolocation_id, latitude, longitude, additional_info)
+
+    def remove_geolocation(self, contract_address, geolocation_id):
+        """
+        Removes an existing geolocation.
+
+        Returns:
+            dict: The transaction receipt.
+        """
+        return self._transact(contract_address, "removeGeolocation", geolocation_id)
+
+    def get_geolocation(self, contract_address, geolocation_id):
+        """
+        Retrieves a geolocation. Unknown IDs return empty strings.
+
+        Returns:
+            dict: ``{"latitude", "longitude", "additionalInfo"}``.
+        """
+        return self._call(contract_address, "getGeolocation", geolocation_id)
+
+    def geolocation_exists(self, contract_address, geolocation_id):
+        """
+        Returns:
+            bool: Whether a geolocation is stored under ``geolocation_id``.
+        """
+        return self._call(contract_address, "geolocationExists", geolocation_id)

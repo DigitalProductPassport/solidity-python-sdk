@@ -6,3 +6,6 @@ from eth_account import Account
 
 class InsufficientFundsError(Exception):
     pass
+
+class TransactionFailedError(Exception):
+    pass

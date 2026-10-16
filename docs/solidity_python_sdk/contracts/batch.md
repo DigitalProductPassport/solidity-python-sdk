@@ -2,117 +2,87 @@
 
 ## Overview
 
-The `Batch` class provides an interface for interacting with the `Batch` smart contract. This class facilitates the deployment of the contract, creating batches, and retrieving batch details from the blockchain.
+The `Batch` class provides an interface for interacting with the `IntegratedProductPassportBatch` smart contract. The contract mints an ERC-721 token (`DPP`) for each production batch, with the batch ID as the token ID, and tracks the batch's origin and current location.
 
 ## Class: `Batch`
 
-### Attributes
+### Common Methods
 
-- **`sdk`** (`DigitalProductPassportSDK`): The SDK instance used for blockchain interactions.
-- **`web3`** (`Web3`): The Web3 instance for interacting with the Ethereum blockchain.
-- **`account`** (`Account`): The Ethereum account used for transactions.
-- **`contract`** (`dict`): ABI and bytecode of the `Batch` contract.
-- **`gas`** (`int`): Gas limit for transactions.
-- **`gwei_bid`** (`int`): Gas price in gwei.
-- **`logger`** (`Logger`): Logger instance for logging information and debug messages.
+Every contract class shares these methods from `BaseContract`:
+
+- **`deploy(initial_owner=None)`**: Deploys the contract and returns its address. The owner defaults to the SDK account.
+- **`owner(contract_address)`**: Returns the address of the contract owner.
+- **`transfer_ownership(contract_address, new_owner)`**: Transfers ownership of the contract.
+
+Write methods return the transaction receipt and raise `TransactionFailedError` if the transaction fails. Read methods return Solidity structs as dicts keyed by their field names.
 
 ### Methods
 
-#### `__init__(self, sdk)`
+#### `initialize_contracts(self, contract_address, product_passport_address, complex_management_address, geolocation_address)`
 
-Initializes the `Batch` class with the provided SDK instance.
-
-- **Args**:
-  - `sdk` (`DigitalProductPassportSDK`): The SDK instance for blockchain interactions.
-
-- **Raises**:
-  - `KeyError`: If the 'Batch' contract is not found in the SDK contracts.
-
-#### `deploy(self, product_passport_address)`
-
-Deploys the `Batch` smart contract to the blockchain.
-
-- **Args**:
-  - `product_passport_address` (`str`): The address of the `ProductPassport` contract to be used in the `Batch` contract.
-
-- **Returns**:
-  - `str`: The address of the deployed `Batch` contract.
-
-- **Raises**:
-  - `ValueError`: If the transaction fails or the contract cannot be deployed.
+Links the `ProductPassport`, `ComplexManagement` and `Geolocation` contracts.
 
 #### `create_batch(self, contract_address, batch_details)`
 
-Creates a new batch in the `Batch` contract.
+Creates a batch for an existing product and mints its NFT to the contract owner. The batch's origin and current location are set to the geolocation of the product's complex.
 
 - **Args**:
-  - `contract_address` (`str`): The address of the deployed `Batch` contract.
-  - `batch_details` (`dict`): A dictionary containing the batch details with keys such as:
-    - `"batchId"` (`str`): The unique identifier for the batch.
-    - `"batchNumber"` (`str`): The batch number.
-    - `"productionDate"` (`str`): The production date of the batch.
-    - `"expiryDate"` (`str`): The expiry date of the batch.
-    - `"quantity"` (`int`): The quantity of items in the batch.
+  - `contract_address` (`str`): The address of the deployed batch contract.
+  - `batch_details` (`dict`): A dictionary with the keys:
+    - `batchId` (`int`): The unique identifier for the batch, also the NFT token ID.
+    - `amount` (`int`): The quantity of items in the batch, greater than zero.
+    - `assemblingTime` (`int`): The UNIX timestamp of the assembling time.
+    - `transportDetails` (`str`): Details about the transport.
+    - `productId` (`int`): The product the batch belongs to.
 
-- **Returns**:
-  - `dict`: The transaction receipt containing details of the transaction.
+#### `update_batch_location(self, contract_address, batch_id, geolocation_id, latitude="", longitude="", additional_info="")`
 
-- **Raises**:
-  - `ValueError`: If the transaction fails or the batch cannot be created.
+Moves a batch to `geolocation_id`. If the geolocation does not exist, the contract tries to create it from `latitude`, `longitude` and `additional_info`. That requires the batch contract to own `Geolocation`, so with `sdk.deploy_system()` it reverts: register the location as a complex first.
 
 #### `get_batch(self, contract_address, batch_id)`
 
-Retrieves the batch details from the `Batch` contract.
+- **Returns**:
+  - `dict`: `{"amount", "assemblingTime", "transportDetails", "currentGeolocationId", "originGeolocationId"}`. Unknown batches have an amount of 0.
 
-- **Args**:
-  - `contract_address` (`str`): The address of the deployed `Batch` contract.
-  - `batch_id` (`str`): The unique identifier for the batch.
+#### `get_batch_details(self, contract_address, batch_id, product_id)`
+
+Retrieves a batch together with its product, complex and locations.
 
 - **Returns**:
-  - `dict`: The batch details retrieved from the contract.
+  - `dict`: `{"batch", "product", "complex", "currentLocation", "originLocation"}`.
 
-- **Raises**:
-  - `ValueError`: If the batch cannot be retrieved or if the batch ID is invalid.
+#### `set_token_uri(self, contract_address, batch_id, token_uri)`
 
-## Dependencies
+Links a batch NFT to off-chain metadata, for example an IPFS JSON file.
 
-This module depends on:
+#### `token_uri(self, contract_address, batch_id)`
 
-- `solidity_python_sdk`: For contract utilities.
-- `web3`: For Ethereum blockchain interactions.
-- `logging`: For logging information and debug messages.
+- **Returns**:
+  - `str`: The metadata URI of the batch NFT.
+
+#### `owner_of(self, contract_address, batch_id)`
+
+- **Returns**:
+  - `str`: The address that holds the batch NFT.
 
 ## Example Usage
 
-Here’s a brief example of how to use the `Batch` class:
-
 ```python
 from solidity_python_sdk import DigitalProductPassportSDK
-from solidity_python_sdk.batch import Batch
 
-# Initialize SDK
-sdk = DigitalProductPassportSDK(provider_url="https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-                                private_key="YOUR_PRIVATE_KEY")
+sdk = DigitalProductPassportSDK()
+addresses = sdk.deploy_system()
+# Register complexes and create product 1 first
 
-# Create Batch instance
-batch = Batch(sdk)
+sdk.batch.create_batch(addresses["batch"], {
+    "batchId": 1,
+    "amount": 100,
+    "assemblingTime": 1687262400,
+    "transportDetails": "Shipped via Express",
+    "productId": 1
+})
+sdk.batch.update_batch_location(addresses["batch"], 1, "GEO-WAREHOUSE-1")
 
-# Deploy Batch contract
-product_passport_address = "0xYourProductPassportContractAddress"
-contract_address = batch.deploy(product_passport_address)
-
-# Create a new batch
-batch_details = {
-    "batchId": "batch123",
-    "batchNumber": "B123",
-    "productionDate": "2024-07-01",
-    "expiryDate": "2025-07-01",
-    "quantity": 1000
-}
-tx_receipt = batch.create_batch(contract_address, batch_details)
-
-# Get batch details
-batch_id = "batch123"
-batch_info = batch.get_batch(contract_address, batch_id)
-print(batch_info)
+details = sdk.batch.get_batch_details(addresses["batch"], 1, 1)
+print(details["originLocation"], details["currentLocation"])
 ```

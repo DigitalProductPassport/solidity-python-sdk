@@ -7,6 +7,11 @@
 
     
 
+`[solidity_python_sdk.contracts.complex_management](complex_management.html
+"solidity_python_sdk.contracts.complex_management")`
+
+    
+
 `[solidity_python_sdk.contracts.geolocation](geolocation.html
 "solidity_python_sdk.contracts.geolocation")`
 
@@ -23,6 +28,7 @@
   * ### Sub-modules
 
     * `[solidity_python_sdk.contracts.batch](batch.html "solidity_python_sdk.contracts.batch")`
+    * `[solidity_python_sdk.contracts.complex_management](complex_management.html "solidity_python_sdk.contracts.complex_management")`
     * `[solidity_python_sdk.contracts.geolocation](geolocation.html "solidity_python_sdk.contracts.geolocation")`
     * `[solidity_python_sdk.contracts.product_passport](product_passport.html "solidity_python_sdk.contracts.product_passport")`
 
